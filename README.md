@@ -156,12 +156,14 @@ But to clarify requests for threaded callback, I write how to use ThreadedSubscr
 Please see `include/sample_subscription.hpp` for concrete example.
 
 (1) To create helper class, inherit ThreadedSubscription and define 2 callbacks: `on_subscription()`, `on_overrun()`.
-    `on_subscription` is for subscription callback. You can read topic via msg_ variable.
-    `on_overrun` is overrun handler, a callback for deadline miss.
-    In constructor you can specify sched_priority, policy and core_id: `ThreadedSubscription(size_t sched_priority, int policy, size_t core_id)`
+- `on_subscription` is for subscription callback. You can read topic via msg_ variable.
+- `on_overrun` is overrun handler, a callback for deadline miss.
+
+In constructor you can specify sched_priority, policy and core_id: `ThreadedSubscription(size_t sched_priority, int policy, size_t core_id)`
+    
 (2) Use created helper in Node class.
-  Use `ThreadedSubscription::create_subscription(rclcpp::Node *node, const std::string & topic, const rclcpp::QoS & qos)` when you don't nedd overrun handler.
-  Use  `ThreadedSubscription::create_subscription(rclcpp::Node *node, const std::string & topic, const rclcpp::QoS & qos, std::chrono::duration<DurationRepT, DurationT> overrun_period)` when you need overrun handler.
+- Use `ThreadedSubscription::create_subscription(rclcpp::Node *node, const std::string & topic, const rclcpp::QoS & qos)` when you don't nedd overrun handler.
+- Use  `ThreadedSubscription::create_subscription(rclcpp::Node *node, const std::string & topic, const rclcpp::QoS & qos, std::chrono::duration<DurationRepT, DurationT> overrun_period)` when you need overrun handler.
 
 TODO
   - Unify hepler class into Node
