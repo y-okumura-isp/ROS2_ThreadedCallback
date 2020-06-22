@@ -37,8 +37,9 @@ class SampleThreadedSubscription : public ThreadedSubscription<MyMsg::UniquePtr,
 public:
   SampleThreadedSubscription(const std::string &name,
                              size_t sched_priority,
-                             int policy):
-      ThreadedSubscription<MyMsg::UniquePtr, MyMsg>(sched_priority, policy),
+                             int policy,
+                             size_t core_id):
+      ThreadedSubscription<MyMsg::UniquePtr, MyMsg>(sched_priority, policy, core_id),
       name_(name), count_(0), st_(time_now())
   {}
 
@@ -108,9 +109,10 @@ public:
              const std::string & topic_name,
              const rclcpp::QoS & qos,
              size_t sched_priority,
-             int policy):
+             int policy,
+             size_t core_id):
       Node(name, ns),
-      helper_(new SampleThreadedSubscription<LEN, TIMES>(name, sched_priority, policy))
+      helper_(new SampleThreadedSubscription<LEN, TIMES>(name, sched_priority, policy, core_id))
   {
     subscription_ = helper_->create_subscription(
         this,
@@ -126,9 +128,10 @@ public:
              const rclcpp::QoS & qos,
              size_t sched_priority,
              int policy,
+             size_t core_id,
              std::chrono::duration<DurationRepT, DurationT> overrun_period):
       Node(name, ns),
-      helper_(new SampleThreadedSubscription<LEN, TIMES>(name, sched_priority, policy))
+      helper_(new SampleThreadedSubscription<LEN, TIMES>(name, sched_priority, policy, core_id))
   {
     subscription_ = helper_->create_subscription(
         this,

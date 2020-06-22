@@ -19,7 +19,7 @@ public:
    * \param[in] sched_priority task thread priority.
    * \param[in] policy specify SCHED_OTHER, SCHED_RR, SCHED_FIFO etc, see pthread_setschedparam(3).
    */
-  ThreadedSubscription(size_t sched_priority=0, int policy=SCHED_OTHER):
+  ThreadedSubscription(size_t sched_priority=0, int policy=SCHED_OTHER, size_t core_id=1):
       ready_(false), working_(false), fin_(false)
   {
     auto task_thread_func =
@@ -59,9 +59,15 @@ public:
                 << std::endl;
     }
 
-    // TODO set affinity
-    // see https://postd.cc/c11-threads-affinity-and-hyperthreading/
-    
+    // set affinity
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);  // TODO core_id is valid
+    int rc = pthread_setaffinity_np(t_.native_handle(),
+                                    sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
   }
 
   auto create_subscription(rclcpp::Node *node,
