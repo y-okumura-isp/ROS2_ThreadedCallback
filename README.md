@@ -75,17 +75,33 @@ colcon build --symlink-install
 ```
 
 ## Run scenario
-Use 2 terminals. To understand the scenario see below.
+Use 2 terminals.
 
 ```
-# first terminal (must be root)
+# first terminal (run as root)
 ./build/realistic_threaded_callback/main_sub
 
 # second terminal
 ./build/realistic_threaded_callback/main_pub -a -b -c
 ```
 
+C-c to stop.
+But main_sub sometimes does not stop... I think signal handling is not enough. :(
+
+### main_sub
 `main_sub` runs SubA, SubB and SubC.
+Scheduler / CPU core is following.
+
+| thread | scheduling policy | sucheduling priority | CPU core |
+|--------|-------------------|---------------------:|----------|
+| main   | SCHED_RR          |                   98 | (unset)  |
+| DDS    | SCHED_RR          |                   97 | (unset)  |
+| SubA   | SCHED_RR          |                   90 | 2        |
+| SubB   | SCHED_RR          |                   80 | 2        |
+| SubC   | SCHED_RR          |                   70 | 2        |
+
+SubC has overrun timer (deadline is 70ms), but overrun handler only print message.
+
 Subscribers have dummy task: they has a large array, and manipulate the array with many loops.
 `SubC loop 0` etc in below stdout is outputed in the loop.
 Callback code image:
@@ -99,28 +115,30 @@ for(int i=0; i<LOOP; i++) {
 }
 ```
 
+### main_pub
 `main_pub` runs PubA if `-a` option is specified. `-b` and `-c` mean PubB, PubC in order.
 Topics for SubC, SubB and SubA are published periodically with a delay of 100 ms.
 
-
-You can see following log in stdout.
+### run result stdout
+You can see following log in stdout at main_sub terminal.
 
 ```
-SubC start HelloWorld0 at t = 7246 count_ = 0     // SubC starts at t = 7246
+SubC start HelloWorld0 at t = 7246 count_ = 0                       // SubC starts at t = 7246
 SubC loop 0
-SubB start HelloWorld0 at t = 7378 count_ = 0     // TopicB comes at t = 7348 and SubB starts.
-SubB loop 0                                       // SubC stops, and SubB runs.
-SubA start HelloWorld0 at t = 7509 count_ = 0     // TopicB comes at t = 7509 and SubA starts.
-SubA loop 0                                       // SubB stops, and SubA runs.
+SubC overrun at t = 7317                                            // SubC overrun handler
+SubB start HelloWorld0 at t = 7378 count_ = 0                       // TopicB comes at t = 7348 and SubB starts.
+SubB loop 0                                                         // SubC stops, and SubB runs.
+SubA start HelloWorld0 at t = 7509 count_ = 0                       // TopicB comes at t = 7509 and SubA starts.
+SubA loop 0                                                         // SubB stops, and SubA runs.
 SubA end   HelloWorld0 at t = 7627 count_ = 0 v = 1.353 tdiff = 118 // SubA finishes.
-SubB loop 1                                       // SubB resumes.
+SubB loop 1                                                         // SubB resumes.
 SubB loop 2
 
 // snip
 
 SubB loop 9
 SubB end   HelloWorld0 at t = 8386 count_ = 0 v = 3.39885 tdiff = 1008  // SubB finished.
-SubC loop 1                                       // SubC resumes
+SubC loop 1                                                             // SubC resumes
 
 // snip
 
@@ -128,7 +146,9 @@ SubC loop 19
 SubC end   HelloWorld0 at t = 10017 count_ = 0 v = 1.65432 tdiff = 2771 // SubC finished.
 ```
 
+### misc
 If tasks are done too fast, change SampleNode loop count(2nd argument for template) such as `SampleNode<640*480, 10>` to `SampleNode<640*480, 100>`.
+
 
 ## How to use ThreadedSubscription
 I think ThreadedSubscription is only PoC class, so we should implement a similar mechanism in ROS layer, and provide more sophisticated API.
@@ -138,8 +158,8 @@ Please see `include/sample_subscription.hpp` for concrete example.
 (1) To create helper class, inherit ThreadedSubscription and define 2 callbacks: `on_subscription()`, `on_overrun()`.
     `on_subscription` is for subscription callback. You can read topic via msg_ variable.
     `on_overrun` is overrun handler, a callback for deadline miss.
-    In constructor you can specify sched_priority and policy `ThreadedSubscription(size_t sched_priority=0, int policy=SCHED_OTHER)`
-(2) Use created helper in Node class
+    In constructor you can specify sched_priority, policy and core_id: `ThreadedSubscription(size_t sched_priority, int policy, size_t core_id)`
+(2) Use created helper in Node class.
   Use `ThreadedSubscription::create_subscription(rclcpp::Node *node, const std::string & topic, const rclcpp::QoS & qos)` when you don't nedd overrun handler.
   Use  `ThreadedSubscription::create_subscription(rclcpp::Node *node, const std::string & topic, const rclcpp::QoS & qos, std::chrono::duration<DurationRepT, DurationT> overrun_period)` when you need overrun handler.
 
