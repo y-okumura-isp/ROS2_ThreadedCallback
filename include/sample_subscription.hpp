@@ -44,7 +44,7 @@ public:
   {}
 
 protected:
-  void on_subscription() override
+  void on_callback() override
   {
     auto t = time_now();
     // Dump msg just after called
