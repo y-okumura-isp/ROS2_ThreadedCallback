@@ -5,7 +5,7 @@
 
 /// Subscription which does subscription callback by thread.
 template<typename MsgPtr, typename Msg>
-class ThreadedSubscription : ThreadedCallback
+class ThreadedSubscription : public ThreadedCallback
 {
 public:
   ThreadedSubscription(size_t sched_priority=0, int policy=SCHED_OTHER, size_t core_id=1):
