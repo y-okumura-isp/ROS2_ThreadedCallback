@@ -73,8 +73,8 @@ public:
     }
 
     if(runs_B) {
-      std::cout << "runs_C" << std::endl;
-      helper_b_ = std::make_unique<SampleSenderByTimer>(this, "topic_c", qos);
+      std::cout << "runs_B" << std::endl;
+      helper_b_ = std::make_unique<SampleSenderByTimer>(this, "topic_b", qos);
       timerB_ = helper_b_->create_wall_timer(this, std::chrono::milliseconds(period_ms));
       std::this_thread::sleep_for(std::chrono::milliseconds(gap_ms));
     }
