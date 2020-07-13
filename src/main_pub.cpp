@@ -6,11 +6,52 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 
+#include "threaded_wall_timer.hpp"
+
 typedef std_msgs::msg::String MyMsg;
 using namespace std::chrono_literals;
 
 #define _NOW (std::chrono::system_clock::now())
 #define NOW (std::chrono::duration_cast<std::chrono::milliseconds>(_NOW - st_).count())
+
+class SampleSenderByTimer : public ThreadedWallTimer
+{
+public:
+  SampleSenderByTimer(
+      rclcpp::Node *node, const std::string &topic, const rclcpp::QoS qos,
+      size_t sched_priority=0, int policy=SCHED_OTHER, size_t core_id=1)
+      : ThreadedWallTimer(sched_priority, policy, core_id),
+        count_(0), topic_(topic),
+        st_(_NOW)
+  {
+    pub_ = node->create_publisher<MyMsg>(topic, qos);
+  }
+
+protected:
+  void on_callback() override;
+
+  void on_overrun() override;
+
+private:
+  rclcpp::Publisher<MyMsg>::SharedPtr pub_;
+  uint64_t count_;
+  const std::string topic_;
+  MyMsg msg_;
+
+  std::chrono::system_clock::time_point st_;
+};
+
+void SampleSenderByTimer::on_callback()
+{
+  std::cout << topic_ << " t = " << NOW << std::endl;
+  msg_.data = "HelloWorld" + std::to_string(count_);
+  pub_->publish(msg_);
+  count_++;
+}
+
+void SampleSenderByTimer::on_overrun()
+{
+}
 
 class PubNode : public rclcpp::Node
 {
@@ -21,66 +62,35 @@ public:
           uint64_t period_ms,
           uint64_t gap_ms,
           bool runs_A, bool runs_B, bool runs_C):
-      Node(name, ns), count_a_(0), count_b_(0), count_c_(0), st_(_NOW)
+      Node(name, ns)
   {
-    pubA_ = this->create_publisher<MyMsg>("topic_a", qos);
-    pubB_ = this->create_publisher<MyMsg>("topic_b", qos);
-    pubC_ = this->create_publisher<MyMsg>("topic_c", qos);
-
-    auto callback_a =
-        [this]() -> void
-        {
-          std::cout << "pubA t = " << NOW << std::endl;
-          MyMsg msg;
-          msg.data = "HelloWorld" + std::to_string(count_a_);
-          pubA_->publish(msg);
-          count_a_++;
-        };
-    auto callback_b =
-        [this]() -> void
-        {
-          std::cout << "pubB t = " << NOW << std::endl;
-          MyMsg msg;
-          msg.data = "HelloWorld" + std::to_string(count_b_);
-          pubB_->publish(msg);
-          count_b_++;
-        };
-    auto callback_c =
-        [this]() -> void
-        {
-          std::cout << "pubC t = " << NOW << std::endl;
-          MyMsg msg;
-          msg.data = "HelloWorld" + std::to_string(count_c_);
-          pubC_->publish(msg);
-          count_c_++;
-        };
-
-
     // run timers 100ms gap
     if(runs_C) {
-      timerC_ = this->create_wall_timer(std::chrono::milliseconds(period_ms),
-                                        callback_c);
+      std::cout << "runs_C" << std::endl;
+      helper_c_ = std::make_unique<SampleSenderByTimer>(this, "topic_c", qos);
+      timerC_ = helper_c_->create_wall_timer(this, std::chrono::milliseconds(period_ms));
       std::this_thread::sleep_for(std::chrono::milliseconds(gap_ms));
     }
 
     if(runs_B) {
-      timerB_ = this->create_wall_timer(std::chrono::milliseconds(period_ms),
-                                        callback_b);
+      std::cout << "runs_C" << std::endl;
+      helper_b_ = std::make_unique<SampleSenderByTimer>(this, "topic_c", qos);
+      timerB_ = helper_b_->create_wall_timer(this, std::chrono::milliseconds(period_ms));
       std::this_thread::sleep_for(std::chrono::milliseconds(gap_ms));
     }
 
     if(runs_A) {
-      timerA_ = this->create_wall_timer(std::chrono::milliseconds(period_ms),
-                                          callback_a);
+      std::cout << "runs_A" << std::endl;
+      helper_a_ = std::make_unique<SampleSenderByTimer>(this, "topic_a", qos);
+      timerA_ = helper_a_->create_wall_timer(this, std::chrono::milliseconds(period_ms));
       std::this_thread::sleep_for(std::chrono::milliseconds(gap_ms));
     }
   }
 
 private:
   rclcpp::TimerBase::SharedPtr timerA_, timerB_, timerC_;
-  rclcpp::Publisher<MyMsg>::SharedPtr pubA_, pubB_, pubC_;
-  uint64_t count_a_, count_b_, count_c_;
-  std::chrono::system_clock::time_point st_;
+
+  std::unique_ptr<SampleSenderByTimer> helper_a_, helper_b_, helper_c_;
 };
 
 int main(int argc, char *argv[]) {
