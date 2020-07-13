@@ -19,10 +19,11 @@ class SampleSenderByTimer : public ThreadedWallTimer
 public:
   SampleSenderByTimer(
       rclcpp::Node *node, const std::string &topic, const rclcpp::QoS qos,
+      const std::chrono::system_clock::time_point st,
       size_t sched_priority=0, int policy=SCHED_OTHER, size_t core_id=1)
       : ThreadedWallTimer(sched_priority, policy, core_id),
         count_(0), topic_(topic),
-        st_(_NOW)
+        st_(st)
   {
     pub_ = node->create_publisher<MyMsg>(topic, qos);
   }
@@ -64,24 +65,25 @@ public:
           bool runs_A, bool runs_B, bool runs_C):
       Node(name, ns)
   {
+    auto st = _NOW;
     // run timers 100ms gap
     if(runs_C) {
       std::cout << "runs_C" << std::endl;
-      helper_c_ = std::make_unique<SampleSenderByTimer>(this, "topic_c", qos);
+      helper_c_ = std::make_unique<SampleSenderByTimer>(this, "topic_c", qos, st);
       timerC_ = helper_c_->create_wall_timer(this, std::chrono::milliseconds(period_ms));
       std::this_thread::sleep_for(std::chrono::milliseconds(gap_ms));
     }
 
     if(runs_B) {
       std::cout << "runs_B" << std::endl;
-      helper_b_ = std::make_unique<SampleSenderByTimer>(this, "topic_b", qos);
+      helper_b_ = std::make_unique<SampleSenderByTimer>(this, "topic_b", qos, st);
       timerB_ = helper_b_->create_wall_timer(this, std::chrono::milliseconds(period_ms));
       std::this_thread::sleep_for(std::chrono::milliseconds(gap_ms));
     }
 
     if(runs_A) {
       std::cout << "runs_A" << std::endl;
-      helper_a_ = std::make_unique<SampleSenderByTimer>(this, "topic_a", qos);
+      helper_a_ = std::make_unique<SampleSenderByTimer>(this, "topic_a", qos, st);
       timerA_ = helper_a_->create_wall_timer(this, std::chrono::milliseconds(period_ms));
       std::this_thread::sleep_for(std::chrono::milliseconds(gap_ms));
     }
