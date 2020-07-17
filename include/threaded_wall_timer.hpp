@@ -18,7 +18,7 @@ public:
         [this, period]() -> void
         {
           if(working_) {
-            std::cout << "sorry I'm busy" << std::endl;
+            std::cout << "sorry I'm busy: wall_timer" << std::endl;
             return;
           }
 
@@ -29,7 +29,8 @@ public:
           cv_.notify_one();
        };
 
-    return node->create_wall_timer(period, callback);
+    timer_ = node->create_wall_timer(period, callback);
+    return timer_;
   }
 
   template<typename DurationRepT = int64_t, typename DurationT = std::milli>
@@ -40,6 +41,9 @@ public:
     create_overrun_handler(node, overrun_period);
     return create_subscription(node, period);
   }
+
+protected:
+  rclcpp::TimerBase::SharedPtr timer_;
 };
 
 #endif  // THREADED_WALL_TIMER_HPP

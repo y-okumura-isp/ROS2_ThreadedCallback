@@ -1,6 +1,7 @@
 #ifndef THREADED_SUBSCRIBER_HPP
 #define THREADED_SUBSCRIBER_HPP
 
+#include <rclcpp/rclcpp.hpp>
 #include "threaded_callback.hpp"
 
 /// Subscription which does subscription callback by thread.
@@ -36,7 +37,8 @@ public:
           cv_.notify_one();
         };
 
-    return node->create_subscription<Msg>(topic, qos, callback);
+    sub_ = node->create_subscription<Msg>(topic, qos, callback);
+    return sub_;
   }
 
   /// create_subscription with overrun handler
@@ -62,6 +64,7 @@ public:
 protected:
   /// you can read topic by this variable
   Msg msg_;
+  typename rclcpp::Subscription<Msg>::SharedPtr sub_;
 };
 
 #endif  // THREADED_SUBSCRIBER_HPP
