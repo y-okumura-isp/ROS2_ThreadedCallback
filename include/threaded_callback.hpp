@@ -7,6 +7,8 @@
 
 #include <pthread.h>
 
+#include <rclcpp/rclcpp.hpp>
+
 class ThreadedCallback
 {
 public:
